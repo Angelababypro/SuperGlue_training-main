@@ -1,0 +1,12 @@
+Collecting torch_scatter
+  Using cached torch_scatter-2.1.0.tar.gz (106 kB)
+  Preparing metadata (setup.py): started
+  Preparing metadata (setup.py): finished with status 'done'
+Building wheels for collected packages: torch_scatter
+  Building wheel for torch_scatter (setup.py): started
+  Building wheel for torch_scatter (setup.py): finished with status 'error'
+  Running setup.py clean for torch_scatter
+Failed to build torch_scatter
+Installing collected packages: torch_scatter
+  Running setup.py install for torch_scatter: started
+  Running setup.py install for torch_scatter: finished with status 'error'
