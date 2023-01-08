@@ -17,3 +17,7 @@ assets\scannet_test_pairs_with_gt.txt
 
 assets\yfcc_test_pairs_with_gt_original.txt
 assets\yfcc_test_pairs_with_gt.txt
+
+
+搞清楚coco数据集中的train和val有什么区别,以及用于val和test的homo.txt文件是按什么规则生成的?
+coco_test_images_homo中有199张图像,coco_val_images_homo中有1500张,是怎么挑选出来的。
