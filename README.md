@@ -127,4 +127,6 @@ All the parameters regarding the random homography range, input and output folde
 - https://github.com/magicleap/SuperGluePretrainedNetwork - Training code is adapted from this official repo
 - https://github.com/ultralytics/yolov5 - Training code template is inspired from this repo
 - 本文code地址：https://github.com/gouthamvgk/SuperGlue_training
-
+## 在原文基础上，针对个性化数据集的一些设定
+- 数据集部分就按照原文的格式，分为train和val两部分，命名也选择相同的形式避免后续麻烦。
+- 用**get_perspective.py**生成val时所需的单应矩阵图像对以及txt文件，用于每一轮训练结束时的val。
