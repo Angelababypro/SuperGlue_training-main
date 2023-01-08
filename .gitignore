@@ -3,6 +3,7 @@
 *.swp
 
 output/
+gen_homos/
 .vscode/
 images/
 debug/
