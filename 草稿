@@ -1,0 +1,19 @@
+assets\coco_test_images_homo.txt  用于Evaluation所生成
+assets\coco_val_images_homo.txt   用于验证的图像和单应性信息
+
+assets\indoor_test_images_homo.txt  用于Evaluation所生成
+
+assets\megadepth_train_scenes.txt
+assets\megadepth_validation_scenes.txt
+
+assets\outdoor_test_images_homo.txt  用于Evaluation所生成
+
+assets\phototourism_sample_pairs.txt
+assets\phototourism_test_pairs_original.txt
+assets\phototourism_test_pairs.txt
+
+assets\scannet_sample_pairs_with_gt.txt
+assets\scannet_test_pairs_with_gt.txt
+
+assets\yfcc_test_pairs_with_gt_original.txt
+assets\yfcc_test_pairs_with_gt.txt

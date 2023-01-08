@@ -1,5 +1,93 @@
 import torch
-a = torch.rand(4,3,28,28) 
-a[:, 2:3].shape
-a /= a[:, 2:3]
-print(a.shape)
+import torchvision
+from torchvision import transforms
+from matplotlib import pyplot as plt
+from torch import nn
+from torch.nn import functional as F
+ 
+# from utils import plot_image,plot_curve,one_hot
+ 
+# class Net(nn.Module):
+#     def __init__(self):
+#         super(Net, self).__init__()
+#
+#         #三层全连接层
+#         #wx+b
+#         self.fc1 = nn.Linear(28*28, 256)
+#         self.fc2 = nn.Linear(256,64)
+#         self.fc3 = nn.Linear(64,10)
+#
+#     def forward(self, x):
+#         x = F.rule(self.fc1(x)) #F.relu和torch.relu，用哪个都行
+#         x = F.relu(self.fc2(x))
+#         x = F.relu(self.fc(3))
+#
+#         return x
+ 
+ 
+class Net(nn.Module):
+ 
+    def __init__(self):
+        super(Net, self).__init__()
+ 
+        self.fc = nn.Sequential(
+            nn.Linear(28 * 28, 256),
+            nn.ReLU(),
+            nn.Linear(256, 64),
+            nn.ReLU(),
+            nn.Linear(64, 10)
+        )
+ 
+        def forward(self, x):
+            # x: [b, 1, 28, 28]
+            # h1 = relu(xw1+b1)
+            x = self.fc(x)
+ 
+            return x
+ 
+batch_size = 512
+#一次处理的图片的数量
+#gpu一次可以处理并行多张图片
+ 
+transform = transforms.Compose([
+    torchvision.transforms.ToTensor(),
+    torchvision.transforms.Normalize((0.1307,), (0.3081,))
+])
+ 
+ 
+trainset = torchvision.datasets.MNIST(
+    root='dataset/',
+    train=True,  #如果为True，从 training.pt 创建数据，否则从 test.pt 创建数据。
+    download=True, #如果为true，则从 Internet 下载数据集并将其放在根目录中。 如果已下载数据集，则不会再次下载。
+    transform=transform
+)
+#train=True表示是训练数据，train=False是测试数据
+ 
+train_loader = torch.utils.data.DataLoader(
+    dataset=trainset,
+    batch_size=batch_size,
+    shuffle=True  #在加载的时候将图片随机打散
+)
+ 
+testset = torchvision.datasets.MNIST(
+    root='dataset/',
+    train=False,
+    download=True,
+    transform=transform
+)
+ 
+train_loader = torch.utils.data.DataLoader(
+    dataset=testset,
+    batch_size=batch_size,
+    shuffle=True
+)
+ 
+net = Net()
+print(net.fc)
+print(net.fc[0])
+print(net.fc[1])
+print(net.fc[2])
+print(net.fc[3])
+print(net.fc[4])
+print(net.fc[0].weight)
+print(net.fc[0].bias)

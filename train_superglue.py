@@ -20,6 +20,7 @@ from utils.preprocess_utils import torch_find_matches
 from utils.dataset import COCO_loader, COCO_valloader, collate_batch
 from torch.utils.tensorboard import SummaryWriter
 
+#根据config的设置的epoch数修改学习率的函数
 def change_lr(epoch, config, optimizer):
     if epoch >= config['optimizer_params']['step_epoch']:
         curr_lr = config['optimizer_params']['lr']
@@ -33,29 +34,41 @@ def change_lr(epoch, config, optimizer):
 
 def train(config, rank):
     is_distributed = (rank >=0)
+    #他妈的没有save_dir是啥意思--->下面有，会根据output_dir生成应该是
     save_dir = Path(config['train_params']['save_dir'])
     weight_dir = save_dir / "weights"
     weight_dir.mkdir(parents=True, exist_ok=True)
-    results_file = None 
+    results_file = None
+    #打开一个 results.txt 用于追加，指针在末尾，如果文件不存在则创建。
     if rank in [0, -1]: results_file = open(save_dir / "results.txt", 'a')
+    #打开一个config.yaml文件，会覆盖，不存在则创建。并把config这一内容写入。sort_keys=False不改变原数据排序
     with open(save_dir / 'config.yaml', 'w') as file:
         yaml.dump(config, file, sort_keys=False)
+    #设置随机种子
     init_seeds(rank + config['train_params']['init_seed'])
+    #他妈的superglue_params下面没有GNN_layers是想怎样，这句不懂在干什么？？？
     config['superglue_params']['GNN_layers'] = ['self', 'cross'] * config['superglue_params']['num_layers']
+    
     superglue_model = SuperGlue(config['superglue_params']).to(device)
     superpoint_model = SuperPoint(config['superpoint_params']).to(device)
+    #这里添加superpoint_model.eval()的作用是？？？
     superpoint_model.eval()
+    #设置不更新superpoint模型的参数
     for _, k in superpoint_model.named_parameters():
         k.requires_grad = False
+    #根据config文件中的start_epoch来设置开始的epoch，实现恢复训练或者是从start_epoch指定的epoch开始训练
     start_epoch = config['train_params']['start_epoch'] if config['train_params']['start_epoch'] > -1 else 0
+    #恢复训练路径下如果有东西的话，进行整理并加载，再判断start_epoch的值，如果是小于0即进行恢复训练。
     if config['superglue_params']['restore_path']:
         restore_dict = torch.load(config['superglue_params']['restore_path'], map_location=device)
         superglue_model.load_state_dict(clean_checkpoint(restore_dict['model'] if 'model' in restore_dict else restore_dict))
         print("Restored model weights..")
         if config['train_params']['start_epoch'] < 0:
             start_epoch = restore_dict['epoch'] + 1
+    #如果是分布式训练，即rank数目大于等于0，并且配置文件中设置的是分布式训练要同步BN层，则同步BN层。
     if is_distributed and config['train_params']['sync_bn']:
         superglue_model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(superglue_model).to(device)
+    #这三个beyond是干啥的
     pg0, pg1, pg2 = [], [], []
     for k, v in superglue_model.named_modules():
         if hasattr(v, 'bias') and isinstance(v.bias, nn.Parameter):
@@ -66,6 +79,7 @@ def train(config, rank):
             pg0.append(v.weight)  # no decay
         elif hasattr(v, 'weight') and isinstance(v.weight, nn.Parameter):
             pg1.append(v.weight)  # apply decay
+    #进行优化器的一些选择以及参数设定
     if config['optimizer_params']['opt_type'].lower() == "adam":
         optimizer = optim.Adam(pg0, lr=config['optimizer_params']['lr'], betas=(0.9, 0.999))  # adjust beta1 to momentum
     else:
@@ -74,10 +88,12 @@ def train(config, rank):
     optimizer.add_param_group({'params': pg2}) 
     print('Optimizer groups: %g .bias, %g conv.weight, %g other' % (len(pg2), len(pg1), len(pg0)))
     del pg0, pg1, pg2
+    #如果是恢复训练，则优化器也从恢复路径中进行恢复。
     if config['superglue_params']['restore_path']:
         if ('optimizer' in restore_dict) and config['train_params']['restore_opt']:
             optimizer.load_state_dict(restore_dict['optimizer'])
             print("Restored optimizer...")
+    #这块儿是设置用不用ema，这个东西不太懂，但是这里默认的是不使用，所以就先不看。
     ema = None
     if config['train_params']['use_ema']:
         ema = ModelEMA(superglue_model) if rank in [-1, 0] else None
@@ -86,8 +102,10 @@ def train(config, rank):
             if ('ema' in restore_dict) and (restore_dict['ema'] is not None):
                 ema.ema.load_state_dict(restore_dict['ema'])
                 ema.updates = restore_dict['ema_updates']
+    #如果是分布式训练：。。。。
     if is_distributed:
         superglue_model = DDP(superglue_model, device_ids=[rank], output_device=rank)
+    #加载训练数据。
     train_dataset = COCO_loader(config['dataset_params'], typ="train")
     sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, shuffle=True) if is_distributed else None
     train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=config['train_params']['batch_size'],
@@ -96,7 +114,9 @@ def train(config, rank):
                                             sampler=sampler,
                                             collate_fn=collate_batch,
                                             pin_memory=True)
+    #一共的batches数目就是train_dataloader的长度。
     num_batches = len(train_dataloader)
+    #加载验证数据集。
     if rank in [-1, 0]:
         val_dataset = COCO_valloader(config['dataset_params'])
         val_dataloader = torch.utils.data.DataLoader(val_dataset, batch_size=1,
@@ -105,12 +125,15 @@ def train(config, rank):
                                             collate_fn=collate_batch,
                                             pin_memory=True)
     start_time = time.time()
+    #训练的轮数
     num_epochs = config['train_params']['num_epochs']
+    #验证最高分
     best_val_score = 1e-10
     if rank in [-1, 0]: print("Started training for {} epochs".format(num_epochs))
     print("Number of batches: {}".format(num_batches))
     warmup_iters = config['optimizer_params']['warmup_epochs'] * num_batches
     change_lr(start_epoch, config, optimizer)
+    #训练的循环
     for epoch in range(start_epoch, num_epochs):
         print("Started epoch: {} in rank {}".format(epoch + 1, rank))
         superglue_model.train()
