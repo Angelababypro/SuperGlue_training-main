@@ -6,8 +6,8 @@ from utils.preprocess_utils import get_perspective_mat
 
 
 np.random.seed(100) # changed the seed if needed
-image_dir = "assets/outdoor_test_images" 
-txt_file = open("assets/outdoor_test_images_homo.txt", 'w') #path where the generated homographies should be stored
+image_dir = r"D:\Develop\MyProject\Dataset\coco_2017\val2017" 
+txt_file = open("assets/cow_val_images_homo.txt", 'w') #path where the generated homographies should be stored
 image_save_path = "gen_homos" #path where the original and warped image will be stored for visualization
 if not os.path.isdir(image_save_path): os.makedirs(image_save_path)
 content = os.listdir(image_dir)
