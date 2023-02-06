@@ -248,6 +248,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--config_path', type=str, default="configs/coco_config.yaml", help="Path to the config file")
     parser.add_argument('--local_rank', type=int, default=-1, help="Rank of the process incase of DDP")
+    parser.add_argument('--experiment_name', type=str, default="default", help="Path to the save dir")
     opt = parser.parse_args()
     opt.world_size = int(os.environ['WORLD_SIZE']) if 'WORLD_SIZE' in os.environ else 1
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -260,7 +261,7 @@ if __name__ == "__main__":
         if "cpu" not in device: torch.cuda.set_device(device)
     with open(opt.config_path, 'r') as file:
         config = yaml.full_load(file)
-    config["train_params"]['save_dir'] = increment_path(Path(config['train_params']['output_dir']) / config['train_params']['experiment_name'])
+    config["train_params"]['save_dir'] = increment_path(Path(config['train_params']['output_dir']) / opt.experiment_name)
     if opt.local_rank in [0, -1]:
         for i,k in config.items():
             print("{}: ".format(i))
