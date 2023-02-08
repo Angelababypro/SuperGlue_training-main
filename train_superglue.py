@@ -31,6 +31,8 @@ def change_lr(epoch, config, optimizer):
         g['lr'] = changed_lr
         c_lr = g['lr']
         print("Changed learning rate to {}".format(c_lr))
+#实例化SummaryWriter对象
+tb_writer = SummaryWriter(log_dir="log")
 
 def train(config, rank):
     is_distributed = (rank >=0)
@@ -239,7 +241,18 @@ def train(config, rank):
                 torch.save(ckpt, weight_dir / 'best.pt')
                 if use_wandb:
                     wandb.save(str(weight_dir / 'best.pt'))
-        change_lr(epoch, config, optimizer)
+            '''
+            添加loss,accuracy和学习率lr到tensorboard
+            add loss, acc and lr into tensorboard
+            '''
+            print("[epoch {}] accuracy: {}".format(epoch, round(results["precision"], 3)))
+            tags = ["train_loss", "accuracy","recall","learning_rate"]
+            tb_writer.add_scalar(tags[0], mloss[0].item(), epoch)
+            tb_writer.add_scalar(tags[1], results["precision"], epoch)
+            tb_writer.add_scalar(tags[2], results["recall"], epoch)
+            tb_writer.add_scalar(tags[3], optimizer.param_groups[0]["lr"], epoch)
+            tb_writer.close  
+        change_lr(epoch, config, optimizer)  
     if rank > 0:
         dist.destroy_process_group()
 
@@ -248,6 +261,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--config_path', type=str, default="configs/coco_config.yaml", help="Path to the config file")
     parser.add_argument('--local_rank', type=int, default=-1, help="Rank of the process incase of DDP")
+    parser.add_argument('--experiment_name', type=str, default="default", help="Path to the save dir")
     opt = parser.parse_args()
     opt.world_size = int(os.environ['WORLD_SIZE']) if 'WORLD_SIZE' in os.environ else 1
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -260,7 +274,7 @@ if __name__ == "__main__":
         if "cpu" not in device: torch.cuda.set_device(device)
     with open(opt.config_path, 'r') as file:
         config = yaml.full_load(file)
-    config["train_params"]['save_dir'] = increment_path(Path(config['train_params']['output_dir']) / config['train_params']['experiment_name'])
+    config["train_params"]['save_dir'] = increment_path(Path(config['train_params']['output_dir']) / opt.experiment_name)
     if opt.local_rank in [0, -1]:
         for i,k in config.items():
             print("{}: ".format(i))
