@@ -31,6 +31,8 @@ def change_lr(epoch, config, optimizer):
         g['lr'] = changed_lr
         c_lr = g['lr']
         print("Changed learning rate to {}".format(c_lr))
+#实例化SummaryWriter对象
+tb_writer = SummaryWriter(log_dir="log")
 
 def train(config, rank):
     is_distributed = (rank >=0)
@@ -239,7 +241,18 @@ def train(config, rank):
                 torch.save(ckpt, weight_dir / 'best.pt')
                 if use_wandb:
                     wandb.save(str(weight_dir / 'best.pt'))
-        change_lr(epoch, config, optimizer)
+            '''
+            添加loss,accuracy和学习率lr到tensorboard
+            add loss, acc and lr into tensorboard
+            '''
+            print("[epoch {}] accuracy: {}".format(epoch, round(results["precision"], 3)))
+            tags = ["train_loss", "accuracy","recall","learning_rate"]
+            tb_writer.add_scalar(tags[0], mloss[0].item(), epoch)
+            tb_writer.add_scalar(tags[1], results["precision"], epoch)
+            tb_writer.add_scalar(tags[2], results["recall"], epoch)
+            tb_writer.add_scalar(tags[3], optimizer.param_groups[0]["lr"], epoch)
+            tb_writer.close  
+        change_lr(epoch, config, optimizer)  
     if rank > 0:
         dist.destroy_process_group()
 
